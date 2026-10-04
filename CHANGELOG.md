@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Added `Diff::LCS.analyze_alignments` (and `Diff::LCS#analyze_alignments`),
+  returning a `Diff::LCS::AlignmentAnalysis` that reports which matched position
+  pairs are present in *every* optimal (minimum insertion/deletion) alignment,
+  which positions remain ambiguous (with ambiguous regions for highlighting), and
+  up to `limit` distinct optimal alignments in a fixed canonical order. Certainty
+  is computed exactly, independently of the display `limit`; a `state_budget`
+  bounds the analysis and any conclusions that could not be established are
+  reported through `#unproven`.
+
 ## 2.0.0 / 2026-02-01
 
 This release has significant **breaking changes**.

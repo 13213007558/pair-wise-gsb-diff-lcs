@@ -64,6 +64,7 @@ end
 require "diff/lcs/version"
 require "diff/lcs/callbacks"
 require "diff/lcs/internals"
+require "diff/lcs/alignment_analysis"
 
 module Diff::LCS
   # Returns an Array containing the longest common subsequence(s) between `self` and
@@ -77,6 +78,10 @@ module Diff::LCS
   # Returns the balanced ("side-by-side") difference set between `self` and `other`. See
   # Diff::LCS.sdiff.
   def sdiff(other, callbacks = nil, &block) = Diff::LCS.sdiff(self, other, callbacks, &block)
+
+  # Analyzes all optimal (minimum insertion/deletion) alignments between +self+ and
+  # +other+. See Diff::LCS.analyze_alignments.
+  def analyze_alignments(other, **options) = Diff::LCS.analyze_alignments(self, other, **options)
 
   # Traverses the discovered longest common subsequences between `self` and `other`. See
   # Diff::LCS.traverse_sequences.
@@ -192,6 +197,19 @@ module Diff::LCS
   # ```
   def self.sdiff(seq1, seq2, callbacks = nil, &block) = # :yields: diff changes
     diff_traversal(:sdiff, seq1, seq2, callbacks || Diff::LCS::SDiffCallbacks, &block)
+
+  # Analyzes every optimal (minimum insertion/deletion) alignment between +seq1+ and
+  # +seq2+, reporting which matched position pairs are present in all of them
+  # (certain) and which positions remain ambiguous, along with up to +limit+
+  # distinct optimal alignments for display. Returns a
+  # Diff::LCS::AlignmentAnalysis; see that class for details.
+  #
+  #   analysis = Diff::LCS.analyze_alignments(%w[a b a c], %w[a a b c])
+  #   analysis.certain_matches   # => [[3, 3]]
+  #   analysis.ambiguous_regions # => [{a: 0...3, b: 0...3}]
+  #   analysis.alignments        # => [[[0, 0], [1, 2], [3, 3]], ...]
+  def self.analyze_alignments(seq1, seq2, **options) =
+    AlignmentAnalysis.new(seq1, seq2, **options)
 
   # #traverse_sequences is the most general facility provided by this module; #diff and
   # #lcs are implemented using #traverse_sequences.

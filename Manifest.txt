@@ -16,6 +16,7 @@ integration/rspec_expectations_spec.rb
 integration/runner
 lib/diff-lcs.rb
 lib/diff/lcs.rb
+lib/diff/lcs/alignment_analysis.rb
 lib/diff/lcs/array.rb
 lib/diff/lcs/block.rb
 lib/diff/lcs/callbacks.rb
@@ -109,6 +110,7 @@ test/fixtures/new-chef
 test/fixtures/new-chef2
 test/fixtures/old-chef
 test/fixtures/old-chef2
+test/test_alignment_analysis.rb
 test/test_block.rb
 test/test_change.rb
 test/test_diff.rb

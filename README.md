@@ -80,6 +80,34 @@ hash, it will only be meaningful if the enumeration of the hashes is consistent.
 In general, this will mean that containers that behave like String or Array will
 perform best.
 
+## Analyzing Alignment Certainty
+
+Some sequence pairs, such as `%w(a b a)` and `%w(a a b)`, have several equally
+short edit scripts, so no single alignment tells the whole story.
+`Diff::LCS.analyze_alignments` reports which matched position pairs appear in
+*every* optimal (minimum insertion/deletion) alignment and which positions remain
+ambiguous, alongside up to `limit` distinct optimal alignments for display:
+
+```ruby
+analysis = Diff::LCS.analyze_alignments(%w[a b a c], %w[a a b c])
+
+analysis.lcs_length        # => 3
+analysis.certain_matches   # => [[3, 3]] ("c" aligns with "c" in every optimal script)
+analysis.ambiguous_a       # => [0, 1, 2]
+analysis.ambiguous_b       # => [0, 1, 2]
+analysis.ambiguous_regions # => [{a: 0...3, b: 0...3}]
+analysis.alignments        # => [[[0, 0], [1, 2], [3, 3]],
+                            #      [[0, 0], [2, 1], [3, 3]],
+                            #      [[0, 1], [1, 2], [3, 3]]]
+```
+
+Matches are reported as pairs of original indexes, so repeated values are
+distinguished by position. Certainty is computed exactly from the dynamic
+programming tables; the `limit:` option only controls how many alignments are
+enumerated for display, and `state_budget:` bounds the work performed. If the
+budget is exhausted, `analysis.unproven` lists the conclusions that could not be
+established and `analysis.truncated_by` explains why enumeration stopped early.
+
 ## History
 
 Diff::LCS is a port of Perl's Algorithm::Diff that uses the McIlroy-Hunt longest
