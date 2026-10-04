@@ -80,6 +80,45 @@ hash, it will only be meaningful if the enumeration of the hashes is consistent.
 In general, this will mean that containers that behave like String or Array will
 perform best.
 
+### Optimal alignment analysis
+
+Repeated values can make several shortest insertion/deletion scripts equally
+valid. `optimal_alignments` distinguishes matches that are present in every
+optimal alignment from positions that remain ambiguous. The `limit` option only
+controls how many complete example alignments are returned; it never changes the
+proven intersection.
+
+```ruby
+require "diff/lcs"
+
+old_seq = %i[x a b a z]
+new_seq = %i[x a a b z]
+
+analysis = Diff::LCS.optimal_alignments(
+  old_seq,
+  new_seq,
+  limit: 2,
+  state_budget: 1_000
+)
+
+analysis[:proven]                # => true
+analysis[:necessary_matches]     # => x and z, by original position
+analysis[:ambiguous_regions]     # => old/new positions 1..3
+analysis[:alignments_truncated]  # => true; two examples are shown
+analysis[:alignments].size       # => 2
+```
+
+Each returned alignment is a distinct optimal match set, with positions retained
+on every match. Unmatched rows use a fixed deletions-before-insertions order, so
+cosmetic operation-order variants for the same match set are not duplicated.
+
+The raw sequences `%i[a b a]` and `%i[a a b]` are a useful warning: although one
+returned alignment may match `b`, there are three optimal match sets and no match
+is present in all of them. The budget counts both prefix and suffix DP states,
+`2 * (old_size + 1) * (new_size + 1)`. If it is exceeded, the result contains
+one optimal example but sets `proven` to false; the fields named in
+`unproven_conclusions` are left empty and must not be treated as facts.
+
 ## History
 
 Diff::LCS is a port of Perl's Algorithm::Diff that uses the McIlroy-Hunt longest

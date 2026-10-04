@@ -71,6 +71,10 @@ module Diff::LCS
   def lcs(other, &block) = # :yields: self[i] if there are matched subsequences
     Diff::LCS.lcs(self, other, &block)
 
+  # Returns proven information about all optimal alignments and a bounded number of
+  # example alignments. See Diff::LCS.optimal_alignments.
+  def optimal_alignments(other, **options) = Diff::LCS.optimal_alignments(self, other, **options)
+
   # Returns the difference set between `self` and `other`. See Diff::LCS.diff.
   def diff(other, callbacks = nil, &block) = Diff::LCS.diff(self, other, callbacks, &block)
 
@@ -149,6 +153,328 @@ module Diff::LCS
         result << v
       end
     }
+  end
+
+  # Analyze all shortest insertion/deletion alignments between `seq1` and `seq2`.
+  # Equal values are never collapsed; every returned match contains the original old
+  # and new positions. `limit` only restricts the number of example alignments and has
+  # no effect on the calculation of matches that belong to every optimal alignment.
+  #
+  # `state_budget` is the maximum number of prefix and suffix dynamic-programming
+  # states used for the complete proof. If the comparison requires more states, one
+  # optimal alignment is still returned when `limit` is positive, but `proven` is
+  # false and `unproven_conclusions` lists the necessity and ambiguity conclusions
+  # that were not proven.
+  #
+  # Each alignment represents one optimal match set. Its rows use a stable
+  # deletions-before-insertions ordering around each match, so operation ordering
+  # variants for the same match set are not counted as different alignments.
+  def self.optimal_alignments(seq1, seq2, limit: 10, state_budget:)
+    unless limit.is_a?(Integer) && limit >= 0
+      fail ArgumentError, "limit must be a non-negative Integer"
+    end
+
+    unless state_budget.is_a?(Integer) && state_budget >= 0
+      fail ArgumentError, "state_budget must be a non-negative Integer"
+    end
+
+    size1 = seq1.size
+    size2 = seq2.size
+    states_required = 2 * (size1 + 1) * (size2 + 1)
+
+    if states_required > state_budget
+      unproven_optimal_alignments(seq1, seq2, limit, states_required, state_budget)
+    else
+      proven_optimal_alignments(seq1, seq2, limit, states_required, state_budget)
+    end
+  end
+
+  class << self
+    private
+
+    def proven_optimal_alignments(seq1, seq2, limit, states_required, state_budget)
+      size1 = seq1.size
+      size2 = seq2.size
+      prefix = lcs_prefixes(seq1, seq2)
+      suffix = lcs_suffixes(seq1, seq2)
+      viable_matches = viable_lcs_matches(seq1, seq2, prefix, suffix)
+      rank_groups = viable_matches
+        .group_by { |match| match[:rank] }
+        .sort
+        .map { |_rank, matches| matches.sort_by { |match| [match[:old_position], match[:new_position]] } }
+
+      necessary_matches = rank_groups
+        .select { |matches| matches.size == 1 }
+        .map { |matches| matches.first }
+      ambiguous_matches = rank_groups
+        .reject { |matches| matches.size == 1 }
+        .flat_map { |matches| matches }
+      ambiguous_regions = build_ambiguous_regions(rank_groups)
+
+      possible_old = viable_matches.map { |match| match[:old_position] }.uniq.sort
+      possible_new = viable_matches.map { |match| match[:new_position] }.uniq.sort
+      ambiguous_old = ambiguous_matches.map { |match| match[:old_position] }.uniq.sort
+      ambiguous_new = ambiguous_matches.map { |match| match[:new_position] }.uniq.sort
+      alignments = []
+      truncated = collect_optimal_alignments(rank_groups, [], 0, limit, seq1, seq2, alignments)
+
+      {
+        proven: true,
+        proof_status: "complete",
+        state_budget: state_budget,
+        states_required: states_required,
+        unproven_conclusions: [],
+        optimal_match_count: prefix[size1][size2],
+        necessary_matches: necessary_matches.map(&method(:public_match)),
+        ambiguous_matches: ambiguous_matches.map(&method(:public_match)),
+        ambiguous_regions: ambiguous_regions,
+        certain_old_positions: rank_groups
+          .select { |matches| matches.map { |match| match[:old_position] }.uniq.size == 1 }
+          .map { |matches| matches.first[:old_position] },
+        certain_new_positions: rank_groups
+          .select { |matches| matches.map { |match| match[:new_position] }.uniq.size == 1 }
+          .map { |matches| matches.first[:new_position] },
+        possible_old_positions: possible_old,
+        possible_new_positions: possible_new,
+        ambiguous_old_positions: ambiguous_old,
+        ambiguous_new_positions: ambiguous_new,
+        always_unmatched_old_positions: (0...size1).to_a - possible_old,
+        always_unmatched_new_positions: (0...size2).to_a - possible_new,
+        alignments_truncated: truncated,
+        alignments: alignments
+      }
+    end
+
+    def unproven_optimal_alignments(seq1, seq2, limit, states_required, state_budget)
+      vector = Diff::LCS::Internals.lcs(seq1, seq2)
+      matches = vector.each_index.filter_map do |old_position|
+        new_position = vector[old_position]
+        next if new_position.nil?
+
+        {
+          old_position: old_position,
+          old_element: seq1[old_position],
+          new_position: new_position,
+          new_element: seq2[new_position]
+        }
+      end
+
+      alignments = limit.zero? ? [] : [alignment_from_matches(matches, seq1, seq2)]
+
+      {
+        proven: false,
+        proof_status: "state_budget_exceeded",
+        state_budget: state_budget,
+        states_required: states_required,
+        unproven_conclusions: %w[
+          necessary_matches
+          ambiguous_matches
+          ambiguous_regions
+          certain_old_positions
+          certain_new_positions
+          possible_old_positions
+          possible_new_positions
+          ambiguous_old_positions
+          ambiguous_new_positions
+          always_unmatched_old_positions
+          always_unmatched_new_positions
+        ],
+        optimal_match_count: matches.size,
+        necessary_matches: [],
+        ambiguous_matches: [],
+        ambiguous_regions: [],
+        certain_old_positions: [],
+        certain_new_positions: [],
+        possible_old_positions: [],
+        possible_new_positions: [],
+        always_unmatched_old_positions: [],
+        always_unmatched_new_positions: [],
+        ambiguous_old_positions: [],
+        ambiguous_new_positions: [],
+        alignments_truncated: nil,
+        alignments: alignments
+      }
+    end
+
+    def lcs_prefixes(seq1, seq2)
+      previous = Array.new(seq2.size + 1, 0)
+      rows = [previous.dup]
+
+      seq1.each do |old_element|
+        current = Array.new(seq2.size + 1, 0)
+
+        seq2.each_with_index do |new_element, new_index|
+          current[new_index + 1] = if old_element == new_element
+            previous[new_index] + 1
+          else
+            [previous[new_index + 1], current[new_index]].max
+          end
+        end
+
+        previous = current
+        rows << current
+      end
+
+      rows
+    end
+
+    def viable_lcs_matches(seq1, seq2, prefix, suffix)
+      optimal_count = prefix.last.last
+      matches = []
+
+      seq1.each_index do |old_position|
+        seq2.each_index do |new_position|
+          next if seq1[old_position] != seq2[new_position]
+          next if prefix[old_position][new_position] + 1 + suffix[old_position + 1][new_position + 1] != optimal_count
+
+          matches << {
+            rank: prefix[old_position][new_position],
+            old_position: old_position,
+            old_element: seq1[old_position],
+            new_position: new_position,
+            new_element: seq2[new_position]
+          }
+        end
+      end
+
+      matches
+    end
+
+    def lcs_suffixes(seq1, seq2)
+      rows = Array.new(seq1.size + 1) { Array.new(seq2.size + 1, 0) }
+
+      (seq1.size - 1).downto(0) do |old_position|
+        (seq2.size - 1).downto(0) do |new_position|
+          rows[old_position][new_position] = if seq1[old_position] == seq2[new_position]
+            rows[old_position + 1][new_position + 1] + 1
+          else
+            [rows[old_position + 1][new_position], rows[old_position][new_position + 1]].max
+          end
+        end
+      end
+
+      rows
+    end
+
+    def build_ambiguous_regions(rank_groups)
+      rank_groups
+        .each_with_index
+        .select { |matches, _rank_index| matches.size > 1 }
+        .slice_when { |(_, current_rank), (_, next_rank)| next_rank != current_rank + 1 }
+        .map do |chunk|
+          groups = chunk.map { |matches, _rank_index| matches }
+          matches = groups.flat_map { |group| group }
+          old_positions = matches.map { |match| match[:old_position] }.uniq.sort
+          new_positions = matches.map { |match| match[:new_position] }.uniq.sort
+
+          {
+            rank_start: groups.first.first[:rank],
+            rank_end: groups.last.first[:rank],
+            old_position_start: old_positions.first,
+            old_position_end: old_positions.last,
+            new_position_start: new_positions.first,
+            new_position_end: new_positions.last,
+            old_positions: old_positions,
+            new_positions: new_positions,
+            matches: matches.map(&method(:public_match))
+          }
+        end
+    end
+
+    def collect_optimal_alignments(rank_groups, path, rank, limit, seq1, seq2, alignments)
+      return false if limit.zero?
+
+      if rank == rank_groups.size
+        alignments << alignment_from_matches(path, seq1, seq2)
+        return alignments.size >= limit
+      end
+
+      candidates = rank_groups[rank]
+      start_index = if path.empty?
+        0
+      else
+        candidates.bsearch_index { |match| match[:old_position] > path.last[:old_position] } || candidates.size
+      end
+
+      (start_index...candidates.size).each do |index|
+        match = candidates[index]
+        next if !path.empty? && match[:new_position] <= path.last[:new_position]
+
+        path.push(match)
+        truncated = collect_optimal_alignments(rank_groups, path, rank + 1, limit, seq1, seq2, alignments)
+        path.pop
+        return true if truncated
+      end
+
+      false
+    end
+
+    def alignment_from_matches(matches, seq1, seq2)
+      rows = []
+      old_position = 0
+      new_position = 0
+
+      matches.each do |match|
+        while old_position < match[:old_position]
+          rows << row_for("-", old_position, seq1[old_position], nil, nil)
+          old_position += 1
+        end
+
+        while new_position < match[:new_position]
+          rows << row_for("+", nil, nil, new_position, seq2[new_position])
+          new_position += 1
+        end
+
+        rows << row_for(
+          "=",
+          match[:old_position],
+          seq1[match[:old_position]],
+          match[:new_position],
+          seq2[match[:new_position]]
+        )
+        old_position = match[:old_position] + 1
+        new_position = match[:new_position] + 1
+      end
+
+      while old_position < seq1.size
+        rows << row_for("-", old_position, seq1[old_position], nil, nil)
+        old_position += 1
+      end
+
+      while new_position < seq2.size
+        rows << row_for("+", nil, nil, new_position, seq2[new_position])
+        new_position += 1
+      end
+
+      matched_old = matches.map { |match| match[:old_position] }
+      matched_new = matches.map { |match| match[:new_position] }
+
+      {
+        matches: matches.map(&method(:public_match)),
+        unmatched_old_positions: (0...seq1.size).to_a - matched_old,
+        unmatched_new_positions: (0...seq2.size).to_a - matched_new,
+        rows: rows
+      }
+    end
+
+    def row_for(action, old_position, old_element, new_position, new_element)
+      {
+        action: action,
+        old_position: old_position,
+        old_element: old_element,
+        new_position: new_position,
+        new_element: new_element
+      }
+    end
+
+    def public_match(match)
+      {
+        old_position: match[:old_position],
+        old_element: match[:old_element],
+        new_position: match[:new_position],
+        new_element: match[:new_element]
+      }
+    end
   end
 
   # `diff` computes the smallest set of additions and deletions necessary to turn the

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added `Diff::LCS.optimal_alignments` for proven necessary and ambiguous
+  matches across all shortest insertion/deletion alignments, bounded example
+  alignment output, and explicit unproven status when the DP state budget is
+  exceeded.
+
 ## 2.0.0 / 2026-02-01
 
 This release has significant **breaking changes**.

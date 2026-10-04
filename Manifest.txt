@@ -117,6 +117,7 @@ test/test_hunk.rb
 test/test_issues.rb
 test/test_lcs.rb
 test/test_ldiff.rb
+test/test_optimal_alignments.rb
 test/test_patch.rb
 test/test_sdiff.rb
 test/test_traverse_balanced.rb
