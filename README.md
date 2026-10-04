@@ -55,6 +55,22 @@ seq2 == Diff::LCS.patch!(seq1, sdiff)
 seq1 == Diff::LCS.unpatch!(seq2, sdiff)
 ```
 
+Unified diff text can be applied in-memory without opening the paths inside the
+patch. A complete plan is returned before replacement, including output-to-source
+coordinates and failure reasons:
+
+```ruby
+plan = Diff::LCS.apply_unified_diff(source, patch, max_offset: 5, ignored_context_lines: 1)
+
+if plan.applied?
+  source = plan.new_text
+elsif plan.ambiguous?
+  plan.alternatives # Inspect equally feasible hunk locations
+else
+  plan.reasons      # Source remains unchanged
+end
+```
+
 Objects can be extended with Diff::LCS:
 
 ```ruby

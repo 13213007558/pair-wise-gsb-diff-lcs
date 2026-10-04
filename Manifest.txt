@@ -24,6 +24,7 @@ lib/diff/lcs/hunk.rb
 lib/diff/lcs/internals.rb
 lib/diff/lcs/ldiff.rb
 lib/diff/lcs/string.rb
+lib/diff/lcs/unified_diff.rb
 lib/diff/lcs/version.rb
 licences/COPYING.txt
 licences/artistic.txt
@@ -121,3 +122,4 @@ test/test_patch.rb
 test/test_sdiff.rb
 test/test_traverse_balanced.rb
 test/test_traverse_sequences.rb
+test/test_unified_diff.rb

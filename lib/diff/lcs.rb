@@ -64,8 +64,20 @@ end
 require "diff/lcs/version"
 require "diff/lcs/callbacks"
 require "diff/lcs/internals"
+require "diff/lcs/unified_diff"
 
 module Diff::LCS
+  class << self
+    def apply_unified_diff(source, patch, max_offset: nil, ignored_context_lines: 0)
+      Diff::LCS::UnifiedDiff.apply(
+        source,
+        patch,
+        max_offset: max_offset,
+        ignored_context_lines: ignored_context_lines
+      )
+    end
+  end
+
   # Returns an Array containing the longest common subsequence(s) between `self` and
   # `other`. See Diff::LCS.lcs.
   def lcs(other, &block) = # :yields: self[i] if there are matched subsequences
