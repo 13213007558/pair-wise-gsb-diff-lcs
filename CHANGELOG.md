@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Added `Diff::LCS.apply_unified_patch`, which locates the hunks of a unified
+  diff against source text using surrounding context (with configurable
+  maximum offset and fuzz) and returns an atomic application plan containing
+  the new text, the original-to-new coordinate mapping, ambiguity alternatives,
+  or explicit failure reasons. Multiple hunks are located jointly and cannot
+  select the same repeated text; CRLF, blank lines, and a missing final newline
+  are preserved, and patch paths are treated as data only.
+
 ## 2.0.0 / 2026-02-01
 
 This release has significant **breaking changes**.

@@ -64,6 +64,7 @@ end
 require "diff/lcs/version"
 require "diff/lcs/callbacks"
 require "diff/lcs/internals"
+require "diff/lcs/unified_patch"
 
 module Diff::LCS
   # Returns an Array containing the longest common subsequence(s) between `self` and

@@ -80,6 +80,39 @@ hash, it will only be meaningful if the enumeration of the hashes is consistent.
 In general, this will mean that containers that behave like String or Array will
 perform best.
 
+## Applying a shifted unified diff
+
+When an online document has gained or lost a few paragraphs compared to the
+baseline a patch was generated from, the hunk line numbers no longer point at
+the right place. `Diff::LCS.apply_unified_patch` reads a unified diff as data,
+locates every hunk from its surrounding context, and returns a complete
+application *plan* without writing to any path:
+
+```ruby
+require 'diff/lcs'
+
+plan = Diff::LCS.apply_unified_patch(original_text, patch_text,
+                                    max_offset: 20, fuzz: 2)
+
+case plan.status
+when :applied
+  plan.new_text           # the resulting text
+  plan.mapping            # original line -> new line and content columns
+  plan.hunks              # chosen position, offset and fuzz for each hunk
+when :ambiguous
+  plan.alternatives       # equally valid placements; original must stay as-is
+when :failed
+  plan.failures           # why each hunk could not be placed
+end
+```
+
+All hunks are located jointly, so two hunks can never greedily select the same
+piece of repeated text. A plan is produced only for a single cheapest
+compatible placement; ties return `:ambiguous` and unmatched hunks return
+`:failed`, leaving the original text unchanged. CRLF, blank lines, and a missing
+final newline are preserved. See `examples/apply_unified_patch_demo.rb` for a
+runnable demonstration of ambiguity and disambiguation.
+
 ## History
 
 Diff::LCS is a port of Perl's Algorithm::Diff that uses the McIlroy-Hunt longest

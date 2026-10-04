@@ -8,6 +8,7 @@ README.md
 Rakefile
 SECURITY.md
 bin/ldiff
+examples/apply_unified_patch_demo.rb
 integration/compare/array_diff_spec.rb
 integration/compare/hash_diff_spec.rb
 integration/compare/string_diff_spec.rb
@@ -23,6 +24,12 @@ lib/diff/lcs/change.rb
 lib/diff/lcs/hunk.rb
 lib/diff/lcs/internals.rb
 lib/diff/lcs/ldiff.rb
+lib/diff/lcs/unified_patch.rb
+lib/diff/lcs/unified_patch/applier.rb
+lib/diff/lcs/unified_patch/engine.rb
+lib/diff/lcs/unified_patch/lines.rb
+lib/diff/lcs/unified_patch/plan.rb
+lib/diff/lcs/unified_patch/parser.rb
 lib/diff/lcs/string.rb
 lib/diff/lcs/version.rb
 licences/COPYING.txt
@@ -119,5 +126,6 @@ test/test_lcs.rb
 test/test_ldiff.rb
 test/test_patch.rb
 test/test_sdiff.rb
+test/test_unified_patch.rb
 test/test_traverse_balanced.rb
 test/test_traverse_sequences.rb
