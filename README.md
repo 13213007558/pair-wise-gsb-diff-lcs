@@ -80,6 +80,18 @@ hash, it will only be meaningful if the enumeration of the hashes is consistent.
 In general, this will mean that containers that behave like String or Array will
 perform best.
 
+Two sequential patchsets can be composed into one without retrieving the
+intermediate sequence, given only the length of the original sequence. Each
+change of the composed patchset records which patchset(s) it originates from:
+
+```ruby
+first = Diff::LCS.diff(seq1, seq2)
+second = Diff::LCS.diff(seq2, seq3)
+composed = Diff::LCS.compose(first, second, source_length: seq1.length)
+seq3 == Diff::LCS.patch!(seq1, composed)
+composed.each { |change| change.sources } # => [:first], [:second], or both
+```
+
 ## History
 
 Diff::LCS is a port of Perl's Algorithm::Diff that uses the McIlroy-Hunt longest

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Added `Diff::LCS.compose`, which composes two sequential patchsets (A→B and
+  B→C) into a single patchset (A→C) given only the length of A, without
+  materializing the intermediate sequence. Unmodified regions are carried
+  through the composition as symbolic intervals, and each change of the
+  composed patchset records which source patchset(s) it originates from
+  (`ComposedChange#sources` / `ComposedContextChange#sources`). The result is
+  a `Diff::LCS::ComposedPatch` that can be applied with the existing
+  `Diff::LCS.patch` / `Diff::LCS.patch!` / `Diff::LCS.unpatch!` interface.
+
 ## 2.0.0 / 2026-02-01
 
 This release has significant **breaking changes**.
