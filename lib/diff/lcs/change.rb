@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 Diff::LCS::Change = Data.define(:action, :position, :element) # :nodoc:
-Diff::LCS::ContextChange = Data.define(:action, :old_position, :old_element, :new_position, :new_element) # :nodoc:
+Diff::LCS::ContextChange = Data.define(:action, :old_position, :old_element, :new_position, :new_element, :sources, :length) # :nodoc:
 
 # Represents a simplistic (non-contextual) change. Represents the removal or addition of
 # an element from either the old or the new sequenced enumerable.
@@ -84,6 +84,19 @@ end
 # Represents a contextual change. Contains the position and values of the elements in the
 # old and the new sequenced enumerable values as well as the action taken.
 class Diff::LCS::ContextChange
+  class << self
+    alias_method :data_new, :new
+
+    def new(*args)
+      if self.name == "Diff::LCS::UnchangedInterval" && args.length == 3
+        return allocate.tap { |instance| instance.send(:initialize, action: "=", old_position: args[0], old_element: nil, new_position: args[1], new_element: nil, length: args[2]) }
+      end
+
+      args.concat([nil] * (7 - args.length)) if args.length < 5
+      data_new(*args)
+    end
+  end
+
   ##
   # Returns the action this Change represents.
   # :attr_reader: action
@@ -104,7 +117,7 @@ class Diff::LCS::ContextChange
   # Returns the new element being changed.
   # :attr_reader: new_element
 
-  def initialize(action:, old_position:, old_element:, new_position:, new_element:)
+  def initialize(action:, old_position:, old_element:, new_position:, new_element:, sources: nil, length: nil)
     fail "Invalid Change Action '#{action}'" unless Diff::LCS::Change.valid_action?(action)
     fail "Invalid (Old) Position Type" unless old_position.nil? || old_position.is_a?(Integer)
     fail "Invalid (New) Position Type" unless new_position.nil? || new_position.is_a?(Integer)

@@ -64,6 +64,7 @@ end
 require "diff/lcs/version"
 require "diff/lcs/callbacks"
 require "diff/lcs/internals"
+require "diff/lcs/composition"
 
 module Diff::LCS
   # Returns an Array containing the longest common subsequence(s) between `self` and
@@ -657,10 +658,16 @@ module Diff::LCS
           # This only appears in sdiff output with the SDiff callback.
           # Therefore, we only need to worry about dealing with a single
           # element.
-          res << el
-
-          a_i += 1
-          b_j += 1
+          length = change.respond_to?(:length) ? change.length : 1
+          if length == 1
+            res << (change.is_a?(Diff::LCS::UnchangedInterval) ? src[a_i] : el)
+            a_i += 1
+            b_j += 1
+          else
+            res.concat(src[a_i, length])
+            a_i += length
+            b_j += length
+          end
         when "!"
           while a_i < op
             res << src[a_i]
